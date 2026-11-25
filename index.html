@@ -1,0 +1,638 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#263b52">
+  <meta name="description" content="Nota Manager - Pengelolaan nota dan transaksi usaha.">
+  <title>Nota Manager</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- HALAMAN AUTENTIKASI -->
+  <main id="authScreen" class="auth-screen">
+    <section class="auth-card">
+      <div class="auth-brand">
+        <div class="auth-logo">NM</div>
+        <h1>Nota Manager</h1>
+        <p>Pengelolaan transaksi usaha</p>
+      </div>
+
+      <!-- LOGIN -->
+      <form id="loginForm" class="auth-form">
+        <h2>Masuk ke Akun</h2>
+        <p class="auth-description">
+          Masukkan email dan kata sandi untuk melanjutkan.
+        </p>
+
+        <div class="field">
+          <label for="loginEmail">Email</label>
+          <input id="loginEmail" type="email"
+                 autocomplete="email"
+                 placeholder="nama@email.com" required>
+        </div>
+
+        <div class="field">
+          <label for="loginPassword">Kata Sandi</label>
+          <input id="loginPassword" type="password"
+                 autocomplete="current-password"
+                 placeholder="Masukkan kata sandi" required>
+        </div>
+
+        <button class="btn primary auth-submit" type="submit">
+          Masuk
+        </button>
+
+        <p class="auth-switch">
+          Belum memiliki akun?
+          <button type="button" id="showRegister">Daftar sekarang</button>
+        </p>
+      </form>
+
+      <!-- DAFTAR -->
+      <form id="registerForm" class="auth-form hidden">
+        <h2>Buat Akun Baru</h2>
+        <p class="auth-description">
+          Daftarkan akun untuk mulai menggunakan Nota Manager.
+        </p>
+
+        <div class="field">
+          <label for="registerName">Nama</label>
+          <input id="registerName" type="text"
+                 autocomplete="name"
+                 placeholder="Nama lengkap" required>
+        </div>
+
+        <div class="field">
+          <label for="registerEmail">Email</label>
+          <input id="registerEmail" type="email"
+                 autocomplete="email"
+                 placeholder="nama@email.com" required>
+        </div>
+
+        <div class="field">
+          <label for="registerPassword">Kata Sandi</label>
+          <input id="registerPassword" type="password"
+                 autocomplete="new-password"
+                 minlength="6"
+                 placeholder="Minimal 6 karakter" required>
+        </div>
+
+        <div class="field">
+          <label for="registerPasswordConfirm">Ulangi Kata Sandi</label>
+          <input id="registerPasswordConfirm" type="password"
+                 autocomplete="new-password"
+                 minlength="6"
+                 placeholder="Ulangi kata sandi" required>
+        </div>
+
+        <button class="btn primary auth-submit" type="submit">
+          Buat Akun
+        </button>
+
+        <p class="auth-switch">
+          Sudah memiliki akun?
+          <button type="button" id="showLogin">Masuk</button>
+        </p>
+      </form>
+
+      <div id="authMessage" class="auth-message" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <!-- APLIKASI -->
+  <div id="appScreen" class="app-screen hidden">
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo">NM</div>
+        <div>
+          <strong>Nota Manager</strong>
+          <small>Manajemen Transaksi</small>
+        </div>
+      </div>
+
+      <div class="top-right">
+        <span id="today"></span>
+
+        <!-- PROFIL -->
+        <div class="profile-area">
+          <button id="profileButton" class="profile-button" type="button">
+            <span class="profile-avatar">●</span>
+            <span>Profil</span>
+            <span class="dropdown-arrow">⌄</span>
+          </button>
+
+          <div id="profileDropdown" class="profile-dropdown hidden">
+            <span class="profile-label">Akun aktif</span>
+            <strong id="profileEmail">-</strong>
+            <button id="openSettings" type="button">⚙ Pengaturan Tampilan</button>
+            <button id="logoutButton" class="logout-option" type="button">
+              Keluar
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <nav>
+          <button class="nav-btn active" data-page="buat" type="button">
+            ▤ <span>Buat Nota</span>
+          </button>
+          <button class="nav-btn" data-page="manager" type="button">
+            ▣ <span>Nota Manager</span>
+          </button>
+          <button class="nav-btn" data-page="kategori" type="button">
+            ◇ <span>Kategori Barang</span>
+          </button>
+          <button class="nav-btn" data-page="pelanggan" type="button">
+            ♙ <span>Pelanggan</span>
+          </button>
+          <button class="nav-btn" data-page="analisa" type="button">
+            ▥ <span>Analisa</span>
+          </button>
+        </nav>
+      </aside>
+
+      <main class="main">
+
+        <!-- BUAT NOTA -->
+        <section class="page active" id="page-buat">
+          <div class="page-heading">
+            <h1>Buat Nota</h1>
+            <p>Buat transaksi dan catat rincian pembelian.</p>
+          </div>
+
+          <div class="invoice-layout">
+            <div class="panel invoice-panel">
+              <div class="form-grid">
+                <div class="field">
+                  <label for="judul">Judul Nota</label>
+                  <input id="judul" type="text"
+                         placeholder="Judul (opsional)">
+                </div>
+
+                <div class="field">
+                  <label for="pelangganNota">
+                    Pelanggan <span class="required">*</span>
+                  </label>
+                  <select id="pelangganNota">
+                    <option value="">Pilih pelanggan</option>
+                    <option value="__other__">＋ Tambah pelanggan baru</option>
+                  </select>
+                  <input id="pelangganBaru" class="hidden" type="text"
+                         placeholder="Nama pelanggan baru">
+                </div>
+
+                <div class="field">
+                  <label for="tanggalNota">Tanggal</label>
+                  <input id="tanggalNota" type="date">
+                </div>
+              </div>
+
+              <div class="section-title">
+                <h2>Rincian Barang</h2>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>No.</th>
+                      <th>Nama Barang</th>
+                      <th>Kategori</th>
+                      <th>Jumlah</th>
+                      <th>Harga</th>
+                      <th>Subtotal</th>
+                      <th>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="itemRows"></tbody>
+                </table>
+              </div>
+
+              <div class="table-actions">
+                <button class="btn secondary" id="addRow" type="button">
+                  ＋ Tambah Baris
+                </button>
+                <button class="btn secondary" id="clearRows" type="button">
+                  Hapus Semua Baris
+                </button>
+              </div>
+            </div>
+
+            <div class="panel total-panel">
+              <h2>Ringkasan Nota</h2>
+              <div class="total-line">
+                <span>Total Item</span>
+                <strong id="totalItem">0</strong>
+              </div>
+              <div class="total-line">
+                <span>Total Kuantitas</span>
+                <strong id="totalQty">0</strong>
+              </div>
+              <div class="total-line grand-total">
+                <span>Total</span>
+                <strong id="grandTotal">Rp 0</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-footer">
+            <button class="btn secondary" id="resetInvoice" type="button">
+              Bersihkan
+            </button>
+            <button class="btn primary" id="saveInvoice" type="button">
+              Simpan Nota
+            </button>
+          </div>
+        </section>
+
+        <!-- NOTA MANAGER -->
+        <section class="page" id="page-manager">
+          <div class="page-heading">
+            <h1>Nota Manager</h1>
+            <p>Kelola dan telusuri seluruh transaksi.</p>
+          </div>
+
+          <div class="manager-toolbar">
+            <input id="searchInvoice" type="search"
+                   placeholder="Cari pelanggan atau nomor nota...">
+            <button class="btn secondary" id="showAllInvoices" type="button">
+              Semua Nota
+            </button>
+          </div>
+
+          <div class="manager-layout">
+            <div class="panel folder-panel">
+              <h2>Folder Pelanggan</h2>
+              <div id="customerFolders" class="folder-list"></div>
+            </div>
+
+            <div class="panel file-panel">
+              <div class="file-heading">
+                <h2 id="folderTitle">Semua Nota</h2>
+                <span id="invoiceCount">0 Nota</span>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>No. Nota</th>
+                      <th>Judul</th>
+                      <th>Tanggal</th>
+                      <th>Total</th>
+                      <th>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="invoiceList"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- KATEGORI -->
+        <section class="page" id="page-kategori">
+          <div class="page-heading">
+            <h1>Kategori Barang</h1>
+            <p>Atur kategori dan harga barang.</p>
+          </div>
+
+          <div class="panel form-panel">
+            <h2 id="categoryFormTitle">Tambah Kategori</h2>
+            <form id="categoryForm" class="inline-form">
+              <input id="categoryName" type="text"
+                     placeholder="Nama kategori" required>
+              <input id="categoryPrice" type="number"
+                     min="0" step="1" placeholder="Harga" required>
+              <button class="btn primary" type="submit">Simpan</button>
+              <button class="btn secondary hidden" id="cancelCategory"
+                      type="button">Batal</button>
+            </form>
+          </div>
+
+          <div class="panel data-panel">
+            <h2>Daftar Kategori</h2>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>No.</th>
+                    <th>Kategori</th>
+                    <th>Harga</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="categoryList"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- PELANGGAN -->
+        <section class="page" id="page-pelanggan">
+          <div class="page-heading">
+            <h1>Pelanggan</h1>
+            <p>Kelola daftar pelanggan.</p>
+          </div>
+
+          <div class="panel form-panel">
+            <h2>Tambah Pelanggan</h2>
+            <form id="customerForm" class="inline-form">
+              <input id="customerName" type="text"
+                     placeholder="Nama pelanggan" required>
+              <button class="btn primary" type="submit">Simpan</button>
+            </form>
+          </div>
+
+          <div class="panel data-panel">
+            <h2>Daftar Pelanggan</h2>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>No.</th>
+                    <th>Nama Pelanggan</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="customerList"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ANALISA -->
+        <section class="page" id="page-analisa">
+          <div class="page-heading">
+            <h1>Analisa Penjualan</h1>
+            <p>Pantau perkembangan transaksi dan penjualan.</p>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span>Total Transaksi</span>
+              <strong id="statInvoices">0</strong>
+            </div>
+            <div class="stat-card">
+              <span>Total Penjualan</span>
+              <strong id="statRevenue">Rp 0</strong>
+            </div>
+            <div class="stat-card">
+              <span>Total Pelanggan</span>
+              <strong id="statCustomers">0</strong>
+            </div>
+            <div class="stat-card">
+              <span>Total Kuantitas Barang</span>
+              <strong id="statItems">0</strong>
+            </div>
+          </div>
+
+          <div class="panel chart-panel">
+            <div class="chart-heading">
+              <h2>Grafik Penjualan</h2>
+              <select id="chartPeriod">
+                <option value="daily">Harian (30 hari)</option>
+                <option value="weekly">Mingguan (12 minggu)</option>
+                <option value="monthly">Bulanan (12 bulan)</option>
+              </select>
+            </div>
+            <div class="chart-container">
+              <canvas id="salesChart"></canvas>
+            </div>
+          </div>
+
+          <div class="charts-grid">
+            <div class="panel chart-panel">
+              <h2>Penjualan per Pelanggan</h2>
+              <div class="donut-container">
+                <canvas id="customerChart"></canvas>
+              </div>
+            </div>
+
+            <div class="panel chart-panel">
+              <h2>Penjualan per Kategori</h2>
+              <div class="donut-container">
+                <canvas id="categoryChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel history-panel">
+            <div class="history-heading">
+              <div>
+                <h2>Analisa Histori</h2>
+                <p>Perbandingan penjualan antarperiode.</p>
+              </div>
+              <div class="history-filters">
+                <select id="historyType">
+                  <option value="monthly">Bulanan</option>
+                  <option value="quarterly">Per Kuartal</option>
+                </select>
+                <select id="historyPeriod"></select>
+              </div>
+            </div>
+
+            <div class="history-stats">
+              <div class="history-card">
+                <span>Penjualan Periode Ini</span>
+                <strong id="historyCurrent">Rp 0</strong>
+              </div>
+              <div class="history-card">
+                <span>Penjualan Sebelumnya</span>
+                <strong id="historyPrevious">Rp 0</strong>
+              </div>
+              <div class="history-card">
+                <span>Perubahan Penjualan</span>
+                <strong id="historyGrowth">0%</strong>
+              </div>
+              <div class="history-card">
+                <span>Jumlah Transaksi</span>
+                <strong id="historyTransactions">0</strong>
+              </div>
+            </div>
+
+            <div class="history-comparison">
+              <h3>Perbandingan Periode</h3>
+              <div class="comparison-bars">
+                <div class="comparison-item">
+                  <span id="previousLabel">Periode Sebelumnya</span>
+                  <div class="comparison-track">
+                    <div id="previousBar" class="comparison-fill previous-fill"></div>
+                  </div>
+                  <strong id="previousAmount">Rp 0</strong>
+                </div>
+                <div class="comparison-item">
+                  <span id="currentLabel">Periode Ini</span>
+                  <div class="comparison-track">
+                    <div id="currentBar" class="comparison-fill current-fill"></div>
+                  </div>
+                  <strong id="currentAmount">Rp 0</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="history-insight">
+              <h3>Ringkasan Periode</h3>
+              <p id="historyConclusion">
+                Belum ada transaksi untuk dianalisis.
+              </p>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- MODAL PENGATURAN TAMPILAN -->
+  <div class="modal hidden" id="settingsModal">
+    <div class="modal-box settings-box">
+      <div class="modal-header">
+        <h2>Pengaturan Tampilan</h2>
+        <button class="close-modal" data-close="settingsModal"
+                type="button">×</button>
+      </div>
+
+      <div class="settings-section">
+        <h3>Warna Aplikasi</h3>
+        <label for="themeColor">Warna utama</label>
+        <div class="color-options">
+          <input id="themeColor" type="color" value="#263b52">
+          <span id="themeColorValue">#263B52</span>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Ukuran Huruf</h3>
+        <label for="fontSize">Ukuran teks aplikasi</label>
+        <div class="font-size-control">
+          <input id="fontSize" type="range" min="12" max="20"
+                 step="1" value="14">
+          <strong><span id="fontSizeValue">14</span> px</strong>
+        </div>
+      </div>
+
+      <div class="settings-preview">
+        <strong>Pratinjau tampilan</strong>
+        <p>Nota Manager — Pengelolaan transaksi usaha.</p>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn secondary" id="resetSettings" type="button">
+          Atur Ulang
+        </button>
+        <button class="btn primary" id="saveSettings" type="button">
+          Simpan Pengaturan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PROFIL -->
+  <div class="modal hidden" id="profileModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>Informasi Akun</h2>
+        <button class="close-modal" data-close="profileModal"
+                type="button">×</button>
+      </div>
+      <div class="profile-information">
+        <span>Email akun</span>
+        <strong id="profileModalEmail">-</strong>
+      </div>
+      <div class="modal-footer">
+        <button class="btn secondary" data-close="profileModal"
+                type="button">Tutup</button>
+        <button class="btn danger" id="profileLogoutButton"
+                type="button">Keluar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PREVIEW NOTA -->
+  <div class="modal hidden" id="previewModal">
+    <div class="modal-box preview-box">
+      <div class="modal-header">
+        <h2>Pratinjau Nota</h2>
+        <button class="close-modal" data-close="previewModal"
+                type="button">×</button>
+      </div>
+      <div id="previewContent"></div>
+      <div class="modal-footer">
+        <button class="btn secondary" data-close="previewModal"
+                type="button">Tutup</button>
+        <button class="btn primary" id="printInvoice" type="button">
+          Cetak Nota
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDIT NOTA -->
+  <div class="modal hidden" id="editModal">
+    <div class="modal-box edit-box">
+      <div class="modal-header">
+        <h2>Ubah Nota</h2>
+        <button class="close-modal" data-close="editModal"
+                type="button">×</button>
+      </div>
+      <div id="editContent"></div>
+      <div class="modal-footer">
+        <button class="btn secondary" data-close="editModal"
+                type="button">Batal</button>
+        <button class="btn primary" id="confirmEdit" type="button">
+          Simpan Perubahan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL KONFIRMASI UMUM -->
+  <div class="modal hidden" id="confirmModal">
+    <div class="modal-box confirm-box">
+      <div class="modal-header">
+        <h2 id="confirmTitle">Konfirmasi</h2>
+        <button class="close-modal" data-close="confirmModal"
+                type="button">×</button>
+      </div>
+      <p id="confirmMessage">Apakah Anda yakin?</p>
+      <div class="modal-footer">
+        <button class="btn secondary" data-close="confirmModal"
+                type="button">Batal</button>
+        <button class="btn primary" id="confirmAction" type="button">
+          Lanjutkan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL RINCIAN DIAGRAM -->
+  <div class="modal hidden" id="chartDetailModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 id="chartDetailTitle">Rincian Penjualan</h2>
+        <button class="close-modal" data-close="chartDetailModal"
+                type="button">×</button>
+      </div>
+      <div id="chartDetailContent"></div>
+      <div class="modal-footer">
+        <button class="btn secondary" data-close="chartDetailModal"
+                type="button">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFIKASI -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- FIREBASE DAN APLIKASI -->
+  <script type="module" src="script.js"></script>
+</body>
+</html>
