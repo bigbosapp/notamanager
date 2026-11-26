@@ -1043,16 +1043,28 @@
   }
   
   
-  /* =====================================================
-     19. KATEGORI - FIRESTORE
-     ===================================================== */
-  
-  function findCategory(name) {
+ 
+/* =====================================================
+   19. KATEGORI - FIRESTORE
+   ===================================================== */
+
+function findCategory(name) {
     const normalized = normalizeName(name).toLowerCase();
   
     return categories.find(category =>
       normalizeName(category.name).toLowerCase() === normalized
     );
+  }
+  
+  function getSortedCategories() {
+    const hasOrder = categories.every(category =>
+      Number.isFinite(category.order)
+    );
+  
+    return [...categories].sort((a, b) => {
+      if (hasOrder) return a.order - b.order;
+      return a.name.localeCompare(b.name, "id");
+    });
   }
   
   async function addCategory(name, price) {
@@ -1064,26 +1076,34 @@
     }
   
     const existing = findCategory(name);
-  
     if (existing) return existing;
+  
+    const data = {
+      name,
+      price,
+      createdAt: serverTimestamp()
+    };
+  
+    if (categories.every(category =>
+      Number.isFinite(category.order)
+    )) {
+      data.order = Math.max(
+        -1,
+        ...categories.map(category => category.order)
+      ) + 1;
+    }
   
     const reference = await addDoc(
       userCollection("categories"),
-      {
-        name,
-        price,
-        createdAt: serverTimestamp()
-      }
+      data
     );
   
     const saved = {
       id: reference.id,
-      name,
-      price
+      ...data
     };
   
     categories.push(saved);
-  
     return saved;
   }
   
@@ -1094,8 +1114,9 @@
   
   function renderCategories() {
     const body = $("categoryList");
+    const sorted = getSortedCategories();
   
-    if (!categories.length) {
+    if (!sorted.length) {
       body.innerHTML = `
         <tr>
           <td colspan="4" class="empty-state">
@@ -1106,29 +1127,83 @@
       return;
     }
   
-    body.innerHTML = [...categories]
-      .sort((a, b) => a.name.localeCompare(b.name, "id"))
-      .map((category, index) => `
-        <tr>
-          <td>${index + 1}</td>
-          <td style="text-align:left">
-            ${escapeHTML(category.name)}
-          </td>
-          <td>${rupiah(category.price)}</td>
-          <td>
-            <div class="action-buttons">
-              <button class="btn small secondary"
-                data-category-edit="${category.id}">
-                Ubah
-              </button>
-              <button class="btn small danger"
-                data-category-delete="${category.id}">
-                Hapus
-              </button>
-            </div>
-          </td>
-        </tr>
-      `).join("");
+    body.innerHTML = sorted.map((category, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td style="text-align:left">
+          ${escapeHTML(category.name)}
+        </td>
+        <td>${rupiah(category.price)}</td>
+        <td>
+          <div class="action-buttons">
+            <button class="btn small secondary"
+              data-category-up="${category.id}"
+              ${index === 0 ? "disabled" : ""}>
+              ↑
+            </button>
+  
+            <button class="btn small secondary"
+              data-category-down="${category.id}"
+              ${index === sorted.length - 1 ? "disabled" : ""}>
+              ↓
+            </button>
+  
+            <button class="btn small secondary"
+              data-category-edit="${category.id}">
+              Ubah
+            </button>
+  
+            <button class="btn small danger"
+              data-category-delete="${category.id}">
+              Hapus
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+  }
+  
+  async function moveCategory(categoryId, direction) {
+    const sorted = getSortedCategories();
+    const index = sorted.findIndex(item => item.id === categoryId);
+    const target = index + direction;
+  
+    if (index < 0 || target < 0 || target >= sorted.length) {
+      return;
+    }
+  
+    const previous = categories.map(item => ({ ...item }));
+  
+    [sorted[index], sorted[target]] =
+      [sorted[target], sorted[index]];
+  
+    categories = sorted.map((item, position) => ({
+      ...item,
+      order: position
+    }));
+  
+    renderCategories();
+  
+    try {
+      const batch = writeBatch(db);
+  
+      categories.forEach(category => {
+        batch.update(
+          userDocument("categories", category.id),
+          {
+            order: category.order,
+            updatedAt: serverTimestamp()
+          }
+        );
+      });
+  
+      await batch.commit();
+  
+    } catch (error) {
+      categories = previous;
+      renderCategories();
+      showToast(firebaseErrorMessage(error), "error");
+    }
   }
   
   function resetCategoryForm() {
@@ -1181,6 +1256,7 @@
         }
   
         showToast("Kategori berhasil diperbarui.");
+  
       } else {
         await addCategory(name, price);
         showToast("Kategori berhasil ditambahkan.");
@@ -1197,8 +1273,23 @@
   $("cancelCategory").addEventListener("click", resetCategoryForm);
   
   $("categoryList").addEventListener("click", async event => {
-    const editId = event.target.dataset.categoryEdit;
-    const deleteId = event.target.dataset.categoryDelete;
+    const button = event.target.closest("button");
+    if (!button) return;
+  
+    const upId = button.dataset.categoryUp;
+    const downId = button.dataset.categoryDown;
+    const editId = button.dataset.categoryEdit;
+    const deleteId = button.dataset.categoryDelete;
+  
+    if (upId) {
+      await moveCategory(upId, -1);
+      return;
+    }
+  
+    if (downId) {
+      await moveCategory(downId, 1);
+      return;
+    }
   
     if (editId) {
       const category = categories.find(item => item.id === editId);
@@ -1213,6 +1304,7 @@
       $("cancelCategory").classList.remove("hidden");
   
       $("categoryName").focus();
+      return;
     }
   
     if (deleteId) {
@@ -1224,10 +1316,11 @@
         async () => {
           await deleteDoc(userDocument("categories", deleteId));
   
-          categories = categories.filter(item => item.id !== deleteId);
+          categories = categories.filter(item =>
+            item.id !== deleteId
+          );
   
           renderCategories();
-  
           showToast("Kategori berhasil dihapus.");
         },
         "Hapus Kategori",
@@ -1241,16 +1334,15 @@
      20. DROPDOWN KATEGORI BARANG
      ===================================================== */
   
-  function categoryOptions(selected = "") {
+ 
+function categoryOptions(selected = "") {
     return `<option value="">Pilih kategori</option>` +
-      [...categories]
-        .sort((a, b) => a.name.localeCompare(b.name, "id"))
-        .map(category => `
-          <option value="${escapeHTML(category.name)}"
-            ${category.name === selected ? "selected" : ""}>
-            ${escapeHTML(category.name)}
-          </option>
-        `).join("") +
+      getSortedCategories().map(category => `
+        <option value="${escapeHTML(category.name)}"
+          ${category.name === selected ? "selected" : ""}>
+          ${escapeHTML(category.name)}
+        </option>
+      `).join("") +
       `<option value="__other__"
         ${selected === "__other__" ? "selected" : ""}>
         ＋ Tambah kategori baru
@@ -1287,36 +1379,57 @@
   
     row.innerHTML = `
       <td class="row-number"></td>
+  
       <td>
         <input class="item-name" type="text"
           placeholder="Nama barang"
           value="${escapeHTML(item.name || "")}">
       </td>
+  
       <td>
         <div class="custom-category-fields">
           <select class="category-select">
             ${categoryOptions(item.category || "")}
           </select>
+  
           <input class="custom-category-name hidden"
-            type="text" placeholder="Nama kategori baru">
+            type="text"
+            placeholder="Nama kategori baru">
+  
           <input class="custom-category-price hidden"
-            type="number" min="0" step="1"
+            type="number"
+            min="0"
+            step="1"
             placeholder="Harga kategori">
         </div>
       </td>
+  
       <td>
-        <input class="item-qty" type="number"
-          min="1" step="1" value="${Number(item.qty) || 1}">
+        <input class="item-qty"
+          type="number"
+          min="1"
+          step="1"
+          value="${item.qty ?? ""}">
       </td>
+  
       <td>
-        <input class="item-price" type="number"
-          min="0" step="1" value="${Number(item.price) || 0}">
+        <input class="item-price"
+          type="number"
+          min="0"
+          step="1"
+          value="${item.price ?? 0}">
       </td>
-      <td class="item-subtotal">${rupiah(
-        (Number(item.qty) || 0) * (Number(item.price) || 0)
-      )}</td>
+  
+      <td class="item-subtotal">
+        ${rupiah(
+          (Number(item.qty) || 0) *
+          (Number(item.price) || 0)
+        )}
+      </td>
+  
       <td>
-        <button type="button" class="btn small danger remove-row">×</button>
+        <button type="button"
+          class="btn small danger remove-row">×</button>
       </td>
     `;
   
@@ -1360,8 +1473,10 @@
   
     if (item.category && !findCategory(item.category)) {
       select.value = "__other__";
+  
       customName.classList.remove("hidden");
       customPrice.classList.remove("hidden");
+  
       customName.value = item.category;
       customPrice.value = Number(item.price) || 0;
     }
@@ -1374,11 +1489,13 @@
     return row;
   }
   
+  
   function renumberRows() {
     document.querySelectorAll("#itemRows tr").forEach((row, index) => {
       row.querySelector(".row-number").textContent = index + 1;
     });
   }
+  
   
   function readRows(container = $("itemRows")) {
     const result = [];
@@ -1412,6 +1529,7 @@
     return result;
   }
   
+  
   function calculateInvoice() {
     const rows = readRows();
   
@@ -1438,11 +1556,16 @@
     $("grandTotal").textContent = rupiah(total);
   }
   
+  
   function addEmptyRow() {
-    createItemRow();
+    return createItemRow();
   }
   
-  $("addRow").addEventListener("click", addEmptyRow);
+  
+  $("addRow").addEventListener("click", () => {
+    addEmptyRow();
+  });
+  
   
   $("clearRows").addEventListener("click", () => {
     if (!$("itemRows").children.length) return;
@@ -1459,6 +1582,7 @@
     );
   });
   
+  
   function resetInvoiceForm() {
     $("judul").value = "";
     $("tanggalNota").value = localDate();
@@ -1473,6 +1597,88 @@
     calculateInvoice();
   }
   
+  
+  /* =====================================================
+     SHORTCUT KEYBOARD - BUAT NOTA
+     ===================================================== */
+$("itemRows").addEventListener("keydown", event => {
+    const target = event.target;
+  
+    if (!$("page-buat").classList.contains("active")) return;
+  
+    // CTRL + A
+    if (
+      event.ctrlKey &&
+      event.key.toLowerCase() === "a" &&
+      target.matches('input[type="text"], textarea')
+    ) {
+      event.preventDefault();
+      target.select();
+      return;
+    }
+  
+    if (event.key !== "Enter") return;
+  
+    const row = target.closest("tr");
+    if (!row) return;
+  
+    const nameInput = row.querySelector(".item-name");
+    const categorySelect = row.querySelector(".category-select");
+    const customName = row.querySelector(".custom-category-name");
+    const customPrice = row.querySelector(".custom-category-price");
+    const quantityInput = row.querySelector(".item-qty");
+  
+    // NAMA BARANG -> BUKA PILIHAN KATEGORI
+    if (target === nameInput) {
+      event.preventDefault();
+      categorySelect.focus();
+  
+      // Membuka dropdown kategori secara otomatis.
+      categorySelect.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true })
+      );
+  
+      return;
+    }
+  
+    // KATEGORI -> JUMLAH
+    if (target === categorySelect) {
+      event.preventDefault();
+  
+      if (categorySelect.value === "__other__") {
+        customName.focus();
+      } else {
+        quantityInput.focus();
+        quantityInput.select();
+      }
+  
+      return;
+    }
+  
+    // NAMA KATEGORI BARU -> HARGA
+    if (target === customName) {
+      event.preventDefault();
+      customPrice.focus();
+      customPrice.select();
+      return;
+    }
+  
+    // HARGA KATEGORI -> JUMLAH
+    if (target === customPrice) {
+      event.preventDefault();
+      quantityInput.focus();
+      quantityInput.select();
+      return;
+    }
+  
+    // JUMLAH -> BARIS BARU
+    if (target === quantityInput) {
+      event.preventDefault();
+  
+      const newRow = addEmptyRow();
+      newRow.querySelector(".item-name").focus();
+    }
+  });
   
   /* =====================================================
      23. VALIDASI NOTA
@@ -1860,9 +2066,10 @@
      27. EDIT NOTA
      ===================================================== */
   
-  function editCategoryOptions(selected = "") {
+  
+function editCategoryOptions(selected = "") {
     return `<option value="">Pilih kategori</option>` +
-      categories.map(category => `
+      getSortedCategories().map(category => `
         <option value="${escapeHTML(category.name)}"
           ${category.name === selected ? "selected" : ""}>
           ${escapeHTML(category.name)}
@@ -1870,6 +2077,7 @@
       `).join("") +
       `<option value="__other__">＋ Tambah kategori baru</option>`;
   }
+  
   
   function openEdit(id) {
     const invoice = invoices.find(item => item.id === id);
@@ -1997,7 +2205,7 @@
       </td>
       <td>
         <input class="item-qty" type="number"
-          min="1" value="${Number(item.qty) || 1}">
+          min="1" value="${item.qty ?? ""}">
       </td>
       <td>
         <input class="item-price" type="number"
@@ -3075,6 +3283,40 @@
     authStateInitialized = true;
   });
   
+  
+/* =====================================================
+   NAVIGASI ENTER PADA BARIS BARANG
+   ===================================================== */
+
+function enableItemKeyboardNavigation(container) {
+    container.addEventListener("keydown", event => {
+      if (event.key !== "Enter") return;
+  
+      const target = event.target;
+  
+      if (!target.classList.contains("item-name")) return;
+  
+      event.preventDefault();
+  
+      const row = target.closest("tr");
+      const select = row?.querySelector(".category-select");
+  
+      if (!select) return;
+  
+      select.focus();
+  
+      if (typeof select.showPicker === "function") {
+        try {
+          select.showPicker();
+        } catch (error) {
+          // Jika browser menolak, fokus tetap pada kategori.
+        }
+      }
+    });
+  }
+  
+  enableItemKeyboardNavigation($("itemRows"));
+  enableItemKeyboardNavigation($("editItemRows"));
   
   /* =====================================================
      AKHIR SCRIPT
